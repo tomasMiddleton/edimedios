@@ -40,5 +40,5 @@
         $uploadOk = 0;
       }
     }
-
+    echo "hecho";
 ?>
