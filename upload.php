@@ -19,12 +19,14 @@ $uploadFileDir = './uploads/';
 $dest_path = $uploadFileDir . $newFileName;
 
 try {
+    echo $fileTmpPath;
+    echo $dest_path;
     if(move_uploaded_file($fileTmpPath, $dest_path)){
         $message ='File is successfully uploaded.';
     }else{
         $message = 'There was some error moving the file to upload directory. Please make sure the upload directory is writable by web server.';
     }
-       
+
     print_r($_FILES);
     
     echo $message;
