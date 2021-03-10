@@ -6,10 +6,10 @@ header('Access-Control-Allow-Headers: Origin, Content-Type, X-Auth-Token , Autho
 header('content-type: application/json; charset=utf-8');
 
 
-$fileTmpPath = $_FILES['uploadedFile']['tmp_name'];
-$fileName = $_FILES['uploadedFile']['name'];
-$fileSize = $_FILES['uploadedFile']['size'];
-$fileType = $_FILES['uploadedFile']['type'];
+$fileTmpPath = $_FILES['filepond']['tmp_name'];
+$fileName = $_FILES['filepond']['name'];
+$fileSize = $_FILES['filepond']['size'];
+$fileType = $_FILES['filepond']['type'];
 $fileNameCmps = explode(".", $fileName);
 $fileExtension = strtolower(end($fileNameCmps));
 
@@ -19,8 +19,8 @@ $uploadFileDir = './uploads/';
 $dest_path = $uploadFileDir . $newFileName;
 
 try {
-    echo $fileTmpPath;
-    echo $dest_path;
+    echo $fileTmpPath . "/n";
+    echo $dest_path . "/n";
     if(move_uploaded_file($fileTmpPath, $dest_path)){
         $message ='File is successfully uploaded.';
     }else{
