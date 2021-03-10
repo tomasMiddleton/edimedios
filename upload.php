@@ -14,9 +14,9 @@ $fileNameCmps = explode(".", $fileName);
 $fileExtension = strtolower(end($fileNameCmps));
 
 
-$fh = fopen("prueba.txt", 'w') or die("Se produjo un error al crear el archivo");
+$fh = fopen("uploads/prueba.txt", 'w') or die("Se produjo un error al crear el archivo");
   
-  $texto = "holllla";
+  $texto = "hollasda";
   
   fwrite($fh, $texto) or die("No se pudo escribir en el archivo");
   
