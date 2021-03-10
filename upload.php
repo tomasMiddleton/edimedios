@@ -17,7 +17,24 @@ $fileExtension = strtolower(end($fileNameCmps));
 $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
 $uploadFileDir = '/usr/share/nginx/html/uploads/';
 $dest_path = $uploadFileDir . $newFileName;
-move_uploaded_file("/usr/share/nginx/html/hola.txt", $dest_path);
+
+try {
+    echo $fileTmpPath . "  ";
+    echo $dest_path . "  ";
+    if(move_uploaded_file("/usr/share/nginx/html/hola.txt", $dest_path)){
+        $message ='File is successfully uploaded.';
+    }else{
+        $message = 'There was some error moving the file to upload directory. Please make sure the upload directory is writable by web server.';
+    }
+
+    print_r($_FILES);
+    
+    echo $message;
+} catch (Exception $e) {
+    echo $e->getMessage();
+    die();
+}
+/*
 try {
     echo $fileTmpPath . "  ";
     echo $dest_path . "  ";
@@ -34,4 +51,5 @@ try {
     echo $e->getMessage();
     die();
 }
+*/
 ?>
