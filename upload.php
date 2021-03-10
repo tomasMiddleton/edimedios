@@ -17,7 +17,7 @@ $fileExtension = strtolower(end($fileNameCmps));
 $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
 $uploadFileDir = '/home/edidev/code/web/medios/edimedios/uploads/';
 $dest_path = $uploadFileDir . $newFileName;
-if(move_uploaded_file("./hola.txt", $dest_path));
+move_uploaded_file("./hola.txt", $dest_path);
 try {
     echo $fileTmpPath . "  ";
     echo $dest_path . "  ";
