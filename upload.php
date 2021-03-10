@@ -40,9 +40,9 @@ try {
         $message = 'There was some error moving the file to upload directory. Please make sure the upload directory is writable by web server.';
     }
 
-    print_r($_FILES);
+    //print_r($_FILES);
     
-    echo $message;
+    echo $newFileName;
 } catch (Exception $e) {
     echo $e->getMessage();
     die();
