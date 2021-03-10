@@ -6,19 +6,30 @@ header('Access-Control-Allow-Headers: Origin, Content-Type, X-Auth-Token , Autho
 header('content-type: application/json; charset=utf-8');
 
 
-$dir_subida = './uploads/';
-$fichero_subido = $dir_subida . basename($_FILES['filepond']['name']);
+$fileTmpPath = $_FILES['uploadedFile']['tmp_name'];
+$fileName = $_FILES['uploadedFile']['name'];
+$fileSize = $_FILES['uploadedFile']['size'];
+$fileType = $_FILES['uploadedFile']['type'];
+$fileNameCmps = explode(".", $fileName);
+$fileExtension = strtolower(end($fileNameCmps));
 
-echo '<pre>';
-if (move_uploaded_file($_FILES['filepond']['tmp_name'], $fichero_subido)) {
-    echo "El fichero es válido y se subió con éxito.\n";
-} else {
-    echo "¡Posible ataque de subida de ficheros!\n";
+
+$newFileName = md5(time() . $fileName) . '.' . $fileExtension;
+$uploadFileDir = './uploads/';
+$dest_path = $uploadFileDir . $newFileName;
+
+try {
+    if(move_uploaded_file($fileTmpPath, $dest_path)){
+        $message ='File is successfully uploaded.';
+    }else{
+        $message = 'There was some error moving the file to upload directory. Please make sure the upload directory is writable by web server.';
+    }
+       
+    print_r($_FILES);
+    
+    echo $message;
+} catch (Exception $e) {
+    echo $e->getMessage();
+    die();
 }
-
-echo 'Más información de depuración:';
-print_r($_FILES);
-
-print "</pre>";
-echo "Uploaded";
- 
+?>
