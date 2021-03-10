@@ -1,10 +1,16 @@
 <?php
-
+/*
 // Comment if you don't want to allow posts from other domains
 header('Access-Control-Allow-Origin: *');
 
 // Allow the following methods to access this file
 header('Access-Control-Allow-Methods: POST');
+*/
+header("Access-Control-Allow-Credentials: true");
+header('Access-Control-Allow-Methods: GET, PUT, POST, DELETE, OPTIONS');
+header('Access-Control-Max-Age: 1000');
+header('Access-Control-Allow-Headers: Origin, Content-Type, X-Auth-Token , Authorization');
+header('content-type: application/json; charset=utf-8');
 
 // Load the FilePond class
 require_once('FilePond.class.php');
