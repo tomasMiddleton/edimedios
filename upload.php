@@ -32,8 +32,8 @@ $dest_path = $uploadFileDir . $newFileName;
 
 
 try {
-    echo $fileTmpPath . "  ";
-    echo $dest_path . "  ";
+    //echo $fileTmpPath . "  ";
+    //echo $dest_path . "  ";
     if(move_uploaded_file($fileTmpPath, $dest_path)){
         $message ='File is successfully uploaded.';
     }else{
