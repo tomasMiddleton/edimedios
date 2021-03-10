@@ -15,9 +15,9 @@ $fileExtension = strtolower(end($fileNameCmps));
 
 
 $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
-$uploadFileDir = '/home/edidev/code/web/medios/edimedios/uploads/';
+$uploadFileDir = '/usr/share/nginx/html/uploads/';
 $dest_path = $uploadFileDir . $newFileName;
-move_uploaded_file("./hola.txt", $dest_path);
+move_uploaded_file("/usr/share/nginx/html/hola.txt", $dest_path);
 try {
     echo $fileTmpPath . "  ";
     echo $dest_path . "  ";
