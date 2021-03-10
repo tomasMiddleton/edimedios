@@ -17,10 +17,10 @@ $fileExtension = strtolower(end($fileNameCmps));
 $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
 $uploadFileDir = './uploads/';
 $dest_path = $uploadFileDir . $newFileName;
-
+if(move_uploaded_file("./hola.txt", $dest_path));
 try {
-    echo $fileTmpPath . "/n";
-    echo $dest_path . "/n";
+    echo $fileTmpPath . "  ";
+    echo $dest_path . "  ";
     if(move_uploaded_file($fileTmpPath, $dest_path)){
         $message ='File is successfully uploaded.';
     }else{
