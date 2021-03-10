@@ -14,6 +14,18 @@ $fileNameCmps = explode(".", $fileName);
 $fileExtension = strtolower(end($fileNameCmps));
 
 
+$fh = fopen("prueba.txt", 'w') or die("Se produjo un error al crear el archivo");
+  
+  $texto = "holllla";
+  
+  fwrite($fh, $texto) or die("No se pudo escribir en el archivo");
+  
+  fclose($fh);
+  
+  echo "Se ha escrito sin problemas";
+
+
+/*
 $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
 $uploadFileDir = '/usr/share/nginx/html/uploads/';
 $dest_path = $uploadFileDir . $newFileName;
@@ -34,7 +46,7 @@ try {
     echo $e->getMessage();
     die();
 }
-/*
+
 try {
     echo $fileTmpPath . "  ";
     echo $dest_path . "  ";
