@@ -524,6 +524,304 @@ class StatsManager
     }
 
     /**
+     * Eliminar todos los logs (PELIGROSO)
+     */
+    public function deleteAllLogs($confirmationCode = null)
+    {
+        // Código de confirmación requerido para seguridad
+        $expectedCode = 'DELETE_ALL_LOGS_' . date('Ymd');
+
+        if ($confirmationCode !== $expectedCode) {
+            throw new Exception("Código de confirmación incorrecto. Use: $expectedCode");
+        }
+
+        $sql = "DELETE FROM activity_logs";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+
+        $deletedCount = $stmt->rowCount();
+
+        // Log de la eliminación masiva
+        $this->logActivity(
+            'system',
+            'warning',
+            "Eliminación masiva de logs ejecutada",
+            "Se eliminaron $deletedCount registros de logs. IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+            null,
+            null
+        );
+
+        return $deletedCount;
+    }
+
+    /**
+     * Eliminar logs por criterios específicos
+     */
+    public function deleteLogsByType($activityType, $status = null, $olderThanDays = null)
+    {
+        $sql = "DELETE FROM activity_logs WHERE activity_type = :activity_type";
+        $params = [':activity_type' => $activityType];
+
+        if ($status) {
+            $sql .= " AND status = :status";
+            $params[':status'] = $status;
+        }
+
+        if ($olderThanDays) {
+            $sql .= " AND created_at < DATE('now', '-{$olderThanDays} days')";
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        $deletedCount = $stmt->rowCount();
+
+        // Log de la eliminación selectiva
+        $this->logActivity(
+            'system',
+            'info',
+            "Eliminación selectiva de logs",
+            "Tipo: $activityType" . ($status ? ", Estado: $status" : "") .
+                ($olderThanDays ? ", Más antiguos que: $olderThanDays días" : "") .
+                ". Eliminados: $deletedCount registros",
+            null,
+            null
+        );
+
+        return $deletedCount;
+    }
+
+    /**
+     * Eliminar archivo físico y sus registros
+     */
+    public function deleteFile($relativePath, $confirmDelete = false)
+    {
+        if (!$confirmDelete) {
+            throw new Exception("Parámetro confirmDelete debe ser true para confirmar eliminación");
+        }
+
+        $result = [
+            'file_deleted' => false,
+            'uploads_deleted' => 0,
+            'views_deleted' => 0,
+            'logs_deleted' => 0,
+            'errors' => []
+        ];
+
+        // Verificar que el archivo existe
+        $possiblePaths = [
+            'uploads/' . $relativePath,
+            'uploads/' . basename($relativePath),
+            'uploads/legacy/' . basename($relativePath)
+        ];
+
+        $filePath = null;
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path)) {
+                $filePath = $path;
+                break;
+            }
+        }
+
+        if (!$filePath) {
+            $result['errors'][] = "Archivo no encontrado: $relativePath";
+            return $result;
+        }
+
+        // Obtener información del archivo antes de eliminarlo
+        $fileSize = filesize($filePath);
+        $fileInfo = [
+            'path' => $filePath,
+            'relative_path' => $relativePath,
+            'size' => $fileSize
+        ];
+
+        try {
+            // 1. Eliminar archivo físico
+            if (unlink($filePath)) {
+                $result['file_deleted'] = true;
+            } else {
+                $result['errors'][] = "No se pudo eliminar el archivo físico: $filePath";
+            }
+
+            // 2. Eliminar registros de uploads
+            $sql = "DELETE FROM uploads WHERE relative_path = :path OR relative_path = :basename";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([
+                ':path' => $relativePath,
+                ':basename' => basename($relativePath)
+            ]);
+            $result['uploads_deleted'] = $stmt->rowCount();
+
+            // 3. Eliminar registros de visualizaciones
+            $sql = "DELETE FROM image_views WHERE image_path = :path OR image_path = :basename";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([
+                ':path' => $relativePath,
+                ':basename' => basename($relativePath)
+            ]);
+            $result['views_deleted'] = $stmt->rowCount();
+
+            // 4. Eliminar logs relacionados al archivo
+            $sql = "DELETE FROM activity_logs WHERE file_path = :path OR file_path = :basename";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([
+                ':path' => $relativePath,
+                ':basename' => basename($relativePath)
+            ]);
+            $result['logs_deleted'] = $stmt->rowCount();
+
+            // 5. Log de la eliminación
+            $this->logActivity(
+                'file_delete',
+                'success',
+                "Archivo eliminado completamente: $relativePath",
+                "Archivo físico: " . ($result['file_deleted'] ? 'eliminado' : 'no encontrado') .
+                    ". Registros eliminados - Uploads: {$result['uploads_deleted']}, " .
+                    "Views: {$result['views_deleted']}, Logs: {$result['logs_deleted']}",
+                $relativePath,
+                $fileSize
+            );
+        } catch (Exception $e) {
+            $result['errors'][] = "Error durante eliminación: " . $e->getMessage();
+
+            // Log del error
+            $this->logActivity(
+                'file_delete',
+                'error',
+                "Error eliminando archivo: $relativePath",
+                "Error: " . $e->getMessage(),
+                $relativePath,
+                $fileSize ?? null
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Obtener lista de archivos para eliminación
+     */
+    public function getFilesForDeletion($type = 'all', $limit = 50)
+    {
+        $files = [];
+
+        if ($type === 'all' || $type === 'uploads') {
+            // Archivos con registros en BD
+            $sql = "
+                SELECT 
+                    relative_path,
+                    original_name,
+                    file_size,
+                    upload_date,
+                    (SELECT COUNT(*) FROM image_views WHERE image_path = uploads.relative_path) as view_count
+                FROM uploads 
+                ORDER BY upload_date DESC 
+                LIMIT :limit
+            ";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+
+            $dbFiles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($dbFiles as $file) {
+                $files[] = [
+                    'type' => 'database',
+                    'path' => $file['relative_path'],
+                    'original_name' => $file['original_name'],
+                    'size' => $file['file_size'],
+                    'upload_date' => $file['upload_date'],
+                    'view_count' => $file['view_count'],
+                    'exists' => $this->fileExists($file['relative_path'])
+                ];
+            }
+        }
+
+        if ($type === 'all' || $type === 'orphaned') {
+            // Archivos físicos sin registros en BD (huérfanos)
+            $this->scanOrphanedFiles($files, 'uploads', $limit);
+        }
+
+        return array_slice($files, 0, $limit);
+    }
+
+    /**
+     * Verificar si archivo físico existe
+     */
+    private function fileExists($relativePath)
+    {
+        $possiblePaths = [
+            'uploads/' . $relativePath,
+            'uploads/' . basename($relativePath),
+            'uploads/legacy/' . basename($relativePath)
+        ];
+
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Escanear archivos huérfanos (sin registros en BD)
+     */
+    private function scanOrphanedFiles(&$files, $directory, $maxFiles)
+    {
+        $extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'];
+        $foundFiles = [];
+
+        // Escanear directorio principal
+        if (is_dir($directory)) {
+            $dirFiles = glob($directory . '/*.{' . implode(',', $extensions) . '}', GLOB_BRACE);
+            $foundFiles = array_merge($foundFiles, $dirFiles);
+        }
+
+        // Escanear subdirectorios (estructura organizada)
+        $years = glob($directory . '/[0-9][0-9][0-9][0-9]', GLOB_ONLYDIR);
+        foreach ($years as $yearDir) {
+            $months = glob($yearDir . '/[0-9][0-9]', GLOB_ONLYDIR);
+            foreach ($months as $monthDir) {
+                $monthFiles = glob($monthDir . '/*.{' . implode(',', $extensions) . '}', GLOB_BRACE);
+                $foundFiles = array_merge($foundFiles, $monthFiles);
+            }
+        }
+
+        // Verificar cuáles no están en BD
+        foreach (array_slice($foundFiles, 0, $maxFiles) as $file) {
+            $relativePath = str_replace('uploads/', '', $file);
+
+            // Verificar si existe en BD
+            $sql = "SELECT COUNT(*) as count FROM uploads WHERE relative_path = :path OR relative_path = :basename";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([
+                ':path' => $relativePath,
+                ':basename' => basename($relativePath)
+            ]);
+
+            $inDatabase = $stmt->fetch(PDO::FETCH_ASSOC)['count'] > 0;
+
+            if (!$inDatabase) {
+                $files[] = [
+                    'type' => 'orphaned',
+                    'path' => $relativePath,
+                    'original_name' => basename($file),
+                    'size' => filesize($file),
+                    'upload_date' => date('Y-m-d H:i:s', filemtime($file)),
+                    'view_count' => 0,
+                    'exists' => $file
+                ];
+            }
+
+            if (count($files) >= $maxFiles) break;
+        }
+    }
+
+    /**
      * Cerrar conexión
      */
     public function __destruct()

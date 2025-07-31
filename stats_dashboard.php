@@ -115,8 +115,11 @@ try {
                 <a href="index.php" class="btn btn-outline-light btn-sm me-2">
                     <i class="fas fa-upload"></i> Subir archivos
                 </a>
-                <a href="simple_img_v3.php" class="btn btn-outline-light btn-sm">
+                <a href="simple_img_v3.php" class="btn btn-outline-light btn-sm me-2">
                     <i class="fas fa-image"></i> Optimizador
+                </a>
+                <a href="#" class="btn btn-outline-light btn-sm" onclick="showFileManager()">
+                    <i class="fas fa-trash"></i> Gestión
                 </a>
             </div>
         </div>
@@ -422,6 +425,140 @@ try {
         <?php endif; ?>
     </div>
 
+    <!-- Modal de gestión de archivos -->
+    <div class="modal fade" id="fileManagerModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-trash"></i> Gestión de Archivos y Logs
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Pestañas de gestión -->
+                    <ul class="nav nav-tabs" id="managementTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="files-tab" data-bs-toggle="tab" data-bs-target="#files"
+                                type="button" role="tab">
+                                <i class="fas fa-file-image"></i> Archivos
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs"
+                                type="button" role="tab">
+                                <i class="fas fa-list-alt"></i> Logs
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="managementTabContent">
+                        <!-- Pestaña de archivos -->
+                        <div class="tab-pane fade show active" id="files" role="tabpanel">
+                            <div class="mt-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <h6>Lista de Archivos</h6>
+                                        <small class="text-muted">Gestiona archivos subidos y huérfanos</small>
+                                    </div>
+                                    <div>
+                                        <select class="form-select form-select-sm" id="fileTypeFilter" onchange="loadFiles()">
+                                            <option value="all">Todos los archivos</option>
+                                            <option value="uploads">Solo con registros BD</option>
+                                            <option value="orphaned">Solo archivos huérfanos</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div id="filesLoading" class="text-center">
+                                    <div class="spinner-border" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                </div>
+
+                                <div id="filesContent" style="display: none;">
+                                    <div id="filesStats" class="alert alert-info"></div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Archivo</th>
+                                                    <th>Tamaño</th>
+                                                    <th>Fecha</th>
+                                                    <th>Vistas</th>
+                                                    <th>Estado</th>
+                                                    <th>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="filesTableBody">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña de logs -->
+                        <div class="tab-pane fade" id="logs" role="tabpanel">
+                            <div class="mt-3">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Eliminar Logs por Tipo</h6>
+                                        <div class="mb-3">
+                                            <select class="form-select" id="logTypeSelect">
+                                                <option value="">Seleccionar tipo</option>
+                                                <option value="upload">Uploads</option>
+                                                <option value="image_view">Visualizaciones</option>
+                                                <option value="file_delete">Eliminaciones</option>
+                                                <option value="system">Sistema</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <select class="form-select" id="logStatusSelect">
+                                                <option value="">Todos los estados</option>
+                                                <option value="success">Éxitos</option>
+                                                <option value="error">Errores</option>
+                                                <option value="warning">Advertencias</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <input type="number" class="form-control" id="logDaysInput"
+                                                placeholder="Más antiguos que X días (opcional)">
+                                        </div>
+                                        <button class="btn btn-warning" onclick="deleteLogsByType()">
+                                            <i class="fas fa-trash"></i> Eliminar Logs Filtrados
+                                        </button>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <h6 class="text-danger">⚠️ Zona Peligrosa</h6>
+                                        <div class="alert alert-danger">
+                                            <strong>Eliminar TODOS los logs</strong><br>
+                                            <small>Esta acción es IRREVERSIBLE</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <input type="text" class="form-control" id="confirmationCodeInput"
+                                                placeholder="Código de confirmación">
+                                            <small class="text-muted">
+                                                Código requerido: <code id="requiredCode">DELETE_ALL_LOGS_<?= date('Ymd') ?></code>
+                                            </small>
+                                        </div>
+                                        <button class="btn btn-danger" onclick="deleteAllLogs()">
+                                            <i class="fas fa-exclamation-triangle"></i> ELIMINAR TODOS LOS LOGS
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
@@ -522,6 +659,227 @@ try {
                     row.style.display = row.dataset.type === type ? '' : 'none';
                 }
             });
+        }
+
+        // Función para mostrar modal de gestión
+        function showFileManager() {
+            const modal = new bootstrap.Modal(document.getElementById('fileManagerModal'));
+            modal.show();
+            loadFiles(); // Cargar archivos al abrir
+        }
+
+        // Cargar lista de archivos
+        function loadFiles() {
+            const type = document.getElementById('fileTypeFilter').value;
+            document.getElementById('filesLoading').style.display = 'block';
+            document.getElementById('filesContent').style.display = 'none';
+
+            fetch(`file_manager.php?action=list&type=${type}&limit=50`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayFiles(data.files, data.stats);
+                    } else {
+                        alert('Error cargando archivos: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error de conexión');
+                })
+                .finally(() => {
+                    document.getElementById('filesLoading').style.display = 'none';
+                    document.getElementById('filesContent').style.display = 'block';
+                });
+        }
+
+        // Mostrar archivos en tabla
+        function displayFiles(files, stats) {
+            const statsDiv = document.getElementById('filesStats');
+            const tbody = document.getElementById('filesTableBody');
+
+            // Mostrar estadísticas
+            statsDiv.innerHTML = `
+                 <strong>📊 Resumen:</strong> 
+                 ${stats.total_files} archivos, 
+                 ${stats.formatted_size} total, 
+                 ${stats.total_views} visualizaciones
+             `;
+
+            // Limpiar tabla
+            tbody.innerHTML = '';
+
+            // Agregar archivos
+            files.forEach(file => {
+                const row = document.createElement('tr');
+                const statusBadge = file.type === 'database' ?
+                    '<span class="badge bg-success">En BD</span>' :
+                    '<span class="badge bg-warning">Huérfano</span>';
+
+                const existsBadge = file.exists ?
+                    '<span class="badge bg-success">Existe</span>' :
+                    '<span class="badge bg-danger">Falta</span>';
+
+                row.innerHTML = `
+                     <td>
+                         <small title="${file.path}">${file.original_name}</small><br>
+                         <code style="font-size: 0.8em;">${file.path}</code>
+                     </td>
+                     <td>${formatFileSize(file.size)}</td>
+                     <td><small>${file.upload_date}</small></td>
+                     <td>${file.view_count}</td>
+                     <td>
+                         ${statusBadge}<br>
+                         ${existsBadge}
+                     </td>
+                     <td>
+                         <button class="btn btn-danger btn-sm" onclick="deleteFile('${file.path}', '${file.original_name}')">
+                             <i class="fas fa-trash"></i>
+                         </button>
+                     </td>
+                 `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Eliminar archivo específico
+        function deleteFile(filePath, fileName) {
+            if (!confirm(`¿Eliminar completamente "${fileName}"?\n\nEsto eliminará:\n- Archivo físico\n- Registros de base de datos\n- Logs relacionados\n\n⚠️ Esta acción es IRREVERSIBLE`)) {
+                return;
+            }
+
+            fetch('file_manager.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'delete_file',
+                        file_path: filePath,
+                        confirm: true
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        loadFiles(); // Recargar lista
+                    } else {
+                        alert('❌ Error: ' + (data.message || data.error));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error de conexión');
+                });
+        }
+
+        // Eliminar logs por tipo
+        function deleteLogsByType() {
+            const activityType = document.getElementById('logTypeSelect').value;
+            const status = document.getElementById('logStatusSelect').value;
+            const olderThanDays = document.getElementById('logDaysInput').value;
+
+            if (!activityType) {
+                alert('Selecciona un tipo de actividad');
+                return;
+            }
+
+            const filters = [];
+            if (status) filters.push(`estado: ${status}`);
+            if (olderThanDays) filters.push(`más antiguos que ${olderThanDays} días`);
+
+            const filterText = filters.length ? ` (${filters.join(', ')})` : '';
+
+            if (!confirm(`¿Eliminar logs de tipo "${activityType}"${filterText}?\n\n⚠️ Esta acción es IRREVERSIBLE`)) {
+                return;
+            }
+
+            const payload = {
+                action: 'delete_logs',
+                activity_type: activityType
+            };
+            if (status) payload.status = status;
+            if (olderThanDays) payload.older_than_days = parseInt(olderThanDays);
+
+            fetch('file_manager.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        location.reload(); // Recargar página para actualizar logs
+                    } else {
+                        alert('❌ Error: ' + (data.message || data.error));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error de conexión');
+                });
+        }
+
+        // Eliminar TODOS los logs
+        function deleteAllLogs() {
+            const confirmationCode = document.getElementById('confirmationCodeInput').value;
+            const expectedCode = 'DELETE_ALL_LOGS_<?= date('Ymd') ?>';
+
+            if (!confirmationCode) {
+                alert(`Ingresa el código de confirmación: ${expectedCode}`);
+                return;
+            }
+
+            if (confirmationCode !== expectedCode) {
+                alert('Código de confirmación incorrecto');
+                return;
+            }
+
+            if (!confirm('⚠️ ¿ELIMINAR TODOS LOS LOGS?\n\nEsta acción eliminará TODOS los registros de logs de la base de datos.\n\n🚨 ESTA ACCIÓN ES COMPLETAMENTE IRREVERSIBLE 🚨')) {
+                return;
+            }
+
+            fetch('file_manager.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'delete_all_logs',
+                        confirmation_code: confirmationCode
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('⚠️ ' + data.message);
+                        location.reload(); // Recargar página
+                    } else {
+                        alert('❌ Error: ' + (data.message || data.error));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error de conexión');
+                });
+        }
+
+        // Formatear tamaño de archivo
+        function formatFileSize(bytes) {
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unitIndex = 0;
+
+            while (size >= 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex++;
+            }
+
+            return `${size.toFixed(2)} ${units[unitIndex]}`;
         }
     </script>
 </body>
