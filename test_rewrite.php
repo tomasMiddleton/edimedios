@@ -2,6 +2,11 @@
 // ARCHIVO: test_rewrite.php
 // Test para verificar reglas de rewrite
 
+// Verificación básica de PHP
+if (!function_exists('phpinfo')) {
+    echo "<h1>Advertencia: Función phpinfo() no disponible</h1>";
+}
+
 echo "<h1>Test de Reglas de Rewrite</h1>";
 
 echo "<h2>Información del servidor:</h2>";

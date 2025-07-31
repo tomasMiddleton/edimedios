@@ -1,6 +1,11 @@
 <?php
-// ARCHIVO: debug_optimize.php
+// ARCHIVO: debug_optimize.php  
 // Script de debug para probar la optimización
+
+// Verificar si GD está disponible antes de usar funciones de imagen
+if (!extension_loaded('gd')) {
+    die('<h1>Error: Extensión GD no disponible</h1><p>La extensión PHP GD es requerida para el procesamiento de imágenes.</p>');
+}
 
 echo "<h1>Debug Sistema de Optimización</h1>";
 
