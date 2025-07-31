@@ -92,19 +92,39 @@ class StatsManager
             )
         ";
 
+        // Tabla de logs de actividad
+        $sql_activity_logs = "
+            CREATE TABLE IF NOT EXISTS activity_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                activity_type VARCHAR(50) NOT NULL,
+                status VARCHAR(20) NOT NULL,
+                message TEXT NOT NULL,
+                details TEXT,
+                file_path VARCHAR(500),
+                file_size INTEGER,
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ";
+
         // Índices para mejor rendimiento
         $indexes = [
             "CREATE INDEX IF NOT EXISTS idx_uploads_path ON uploads(relative_path)",
             "CREATE INDEX IF NOT EXISTS idx_uploads_date ON uploads(upload_date)",
             "CREATE INDEX IF NOT EXISTS idx_views_path ON image_views(image_path)",
             "CREATE INDEX IF NOT EXISTS idx_views_date ON image_views(view_date)",
-            "CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(date)"
+            "CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(date)",
+            "CREATE INDEX IF NOT EXISTS idx_activity_logs_type ON activity_logs(activity_type)",
+            "CREATE INDEX IF NOT EXISTS idx_activity_logs_status ON activity_logs(status)",
+            "CREATE INDEX IF NOT EXISTS idx_activity_logs_date ON activity_logs(created_at)"
         ];
 
         // Ejecutar creación de tablas
         $this->db->exec($sql_uploads);
         $this->db->exec($sql_views);
         $this->db->exec($sql_daily_stats);
+        $this->db->exec($sql_activity_logs);
 
         // Crear índices
         foreach ($indexes as $index) {
@@ -361,6 +381,146 @@ class StatsManager
         $bytes /= pow(1024, $pow);
 
         return round($bytes, 2) . ' ' . $units[$pow];
+    }
+
+    /**
+     * Registrar actividad en log
+     */
+    public function logActivity($type, $status, $message, $details = null, $filePath = null, $fileSize = null)
+    {
+        $sql = "
+            INSERT INTO activity_logs (
+                activity_type, status, message, details, file_path, 
+                file_size, ip_address, user_agent
+            ) VALUES (
+                :activity_type, :status, :message, :details, :file_path,
+                :file_size, :ip_address, :user_agent
+            )
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $result = $stmt->execute([
+            ':activity_type' => $type,
+            ':status' => $status,
+            ':message' => $message,
+            ':details' => $details,
+            ':file_path' => $filePath,
+            ':file_size' => $fileSize,
+            ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+            ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
+        ]);
+
+        return $this->db->lastInsertId();
+    }
+
+    /**
+     * Obtener logs de actividad recientes
+     */
+    public function getActivityLogs($limit = 50, $type = null, $status = null)
+    {
+        $sql = "
+            SELECT * FROM activity_logs 
+            WHERE 1=1
+        ";
+
+        $params = [];
+
+        if ($type) {
+            $sql .= " AND activity_type = :type";
+            $params[':type'] = $type;
+        }
+
+        if ($status) {
+            $sql .= " AND status = :status";
+            $params[':status'] = $status;
+        }
+
+        $sql .= " ORDER BY created_at DESC LIMIT :limit";
+        $params[':limit'] = $limit;
+
+        $stmt = $this->db->prepare($sql);
+
+        // Bind limit as integer
+        foreach ($params as $key => $value) {
+            if ($key === ':limit') {
+                $stmt->bindValue($key, $value, PDO::PARAM_INT);
+            } else {
+                $stmt->bindValue($key, $value);
+            }
+        }
+
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtener estadísticas de logs por tipo
+     */
+    public function getLogStats()
+    {
+        $stats = [];
+
+        // Total de logs por tipo
+        $sql = "
+            SELECT 
+                activity_type,
+                status,
+                COUNT(*) as count
+            FROM activity_logs 
+            GROUP BY activity_type, status
+            ORDER BY activity_type, status
+        ";
+
+        $stmt = $this->db->query($sql);
+        $stats['by_type_status'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Logs de hoy
+        $sql = "
+            SELECT 
+                activity_type,
+                COUNT(*) as count
+            FROM activity_logs 
+            WHERE DATE(created_at) = DATE('now')
+            GROUP BY activity_type
+            ORDER BY count DESC
+        ";
+
+        $stmt = $this->db->query($sql);
+        $stats['today'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Últimos 7 días
+        $sql = "
+            SELECT 
+                DATE(created_at) as date,
+                activity_type,
+                status,
+                COUNT(*) as count
+            FROM activity_logs 
+            WHERE created_at >= DATE('now', '-7 days')
+            GROUP BY DATE(created_at), activity_type, status
+            ORDER BY date DESC, activity_type
+        ";
+
+        $stmt = $this->db->query($sql);
+        $stats['last_7_days'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return $stats;
+    }
+
+    /**
+     * Limpiar logs antiguos (opcional)
+     */
+    public function cleanOldLogs($daysToKeep = 90)
+    {
+        $sql = "
+            DELETE FROM activity_logs 
+            WHERE created_at < DATE('now', '-{$daysToKeep} days')
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute();
+
+        return $stmt->rowCount();
     }
 
     /**

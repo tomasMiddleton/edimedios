@@ -182,14 +182,30 @@ function resolveFilePath($src)
 $filePath = resolveFilePath($src);
 
 if (!$filePath) {
+    // Log de imagen no encontrada
+    if ($stats) {
+        $stats->logActivity(
+            'image_view',
+            'not_found',
+            "Imagen no encontrada: $src",
+            "Usuario intentó acceder a imagen inexistente. Rutas verificadas: uploads/$src, uploads/" . basename($src) . ", uploads/legacy/" . basename($src),
+            $src
+        );
+    }
+
     header('Content-Type: text/plain; charset=utf-8');
     http_response_code(404);
-    echo "Error: Archivo no encontrado\n";
-    echo "Ruta buscada: " . htmlspecialchars($src) . "\n";
-    echo "Nota: Asegúrate de usar la ruta relativa correcta\n";
-    echo "Ejemplos:\n";
-    echo "- Nueva estructura: 2025/01/archivo.jpg\n";
-    echo "- Legacy: archivo.jpg\n";
+    echo "❌ Imagen no encontrada\n\n";
+    echo "🔍 Archivo buscado: " . htmlspecialchars($src) . "\n\n";
+    echo "💡 Verifica que:\n";
+    echo "• El archivo existe en el servidor\n";
+    echo "• La ruta esté escrita correctamente\n";
+    echo "• No falten barras (/) en la ruta\n\n";
+    echo "📝 Ejemplos de rutas válidas:\n";
+    echo "• Nueva estructura: 2025/01/archivo.jpg\n";
+    echo "• Legacy: archivo.jpg\n";
+    echo "• Legacy migrado: legacy/archivo.jpg\n\n";
+    echo "🔗 Para ver imágenes disponibles: simple_img_v3.php\n";
     exit;
 }
 
@@ -221,6 +237,16 @@ if (!$w && !$h) {
             'cache_hit' => false,
             'processing_time_ms' => null
         ]);
+
+        // Log de visualización exitosa
+        $stats->logActivity(
+            'image_view',
+            'success',
+            "Imagen servida (original): $src",
+            "Tipo MIME: $mimeType. Archivo: $filePath",
+            $src,
+            filesize($filePath)
+        );
     }
 
     readfile($filePath);
@@ -274,6 +300,16 @@ if (file_exists($cachePath)) {
             'cache_hit' => true,
             'processing_time_ms' => $processingTimeMs
         ]);
+
+        // Log de cache hit
+        $stats->logActivity(
+            'image_view',
+            'success',
+            "Imagen servida (cache): $src",
+            "Dimensiones: {$w}x{$h}, Formato: $f, Calidad: $q, Tiempo: {$processingTimeMs}ms (CACHE HIT)",
+            $src,
+            filesize($cachePath)
+        );
     }
 
     readfile($cachePath);
@@ -389,6 +425,16 @@ try {
             'cache_hit' => false,
             'processing_time_ms' => $processingTimeMs
         ]);
+
+        // Log de procesamiento exitoso
+        $stats->logActivity(
+            'image_view',
+            'success',
+            "Imagen procesada y servida: $src",
+            "Dimensiones: {$w}x{$h}, Formato: $f, Calidad: $q, Tiempo: {$processingTimeMs}ms (PROCESADA)",
+            $src,
+            filesize($cachePath)
+        );
     }
 
     readfile($cachePath);
@@ -399,9 +445,21 @@ try {
 } catch (Exception $e) {
     header('Content-Type: text/plain; charset=utf-8');
     http_response_code(500);
-    echo "Error: " . $e->getMessage();
 
-    // 📊 REGISTRAR ERROR (opcional)
+    $errorMsg = "❌ Error procesando imagen: " . $e->getMessage();
+    echo $errorMsg . "\n\n";
+    echo "🔍 Archivo: $src\n";
+    echo "📐 Dimensiones solicitadas: {$w}x{$h}\n";
+    echo "🎨 Formato solicitado: $f\n";
+    echo "⚙️ Calidad solicitada: $q\n\n";
+    echo "💡 Posibles causas:\n";
+    echo "• Archivo corrupto o no es una imagen válida\n";
+    echo "• Formato de imagen no soportado\n";
+    echo "• Problemas de memoria del servidor\n";
+    echo "• Permisos insuficientes\n\n";
+    echo "🔗 Intenta con otra imagen o contacta al administrador\n";
+
+    // 📊 REGISTRAR ERROR
     if ($stats) {
         try {
             $stats->recordView($src, [
@@ -412,8 +470,18 @@ try {
                 'cache_hit' => false,
                 'processing_time_ms' => null
             ]);
+
+            // Log detallado del error de procesamiento
+            $stats->logActivity(
+                'image_view',
+                'error',
+                "Error procesando imagen: $src",
+                "Error: " . $e->getMessage() . ". Parámetros: {$w}x{$h}, formato: $f, calidad: $q. Archivo: $filePath",
+                $src
+            );
         } catch (Exception $statsError) {
             // Ignorar errores de stats
+            error_log("Stats error while logging image processing error: " . $statsError->getMessage());
         }
     }
 }

@@ -41,6 +41,14 @@ try {
     // Inicializar sistema de estadísticas
     $stats = new StatsManager();
 
+    // Log inicio de upload
+    $stats->logActivity(
+        'upload',
+        'started',
+        'Inicio de proceso de upload',
+        'Usuario inició upload de archivo: ' . $_FILES['filepond']['name']
+    );
+
     // Información del archivo
     $originalName = $file['name'];
     $tmpPath = $file['tmp_name'];
@@ -53,12 +61,31 @@ try {
     $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'];
 
     if (!in_array($extension, $allowedExtensions)) {
-        throw new Exception('Tipo de archivo no permitido');
+        $errorMsg = "Tipo de archivo '$extension' no permitido. Formatos aceptados: " . implode(', ', $allowedExtensions);
+        $stats->logActivity(
+            'upload',
+            'error',
+            $errorMsg,
+            "Archivo rechazado: $originalName (extensión: $extension)",
+            null,
+            $fileSize
+        );
+        throw new Exception($errorMsg);
     }
 
     // Validar tamaño (100MB máximo)
-    if ($fileSize > 100 * 1024 * 1024) {
-        throw new Exception('Archivo demasiado grande (máximo 100MB)');
+    $maxSize = 100 * 1024 * 1024;
+    if ($fileSize > $maxSize) {
+        $errorMsg = "Archivo demasiado grande (" . round($fileSize / 1024 / 1024, 2) . "MB). Máximo permitido: 100MB";
+        $stats->logActivity(
+            'upload',
+            'error',
+            $errorMsg,
+            "Archivo rechazado por tamaño: $originalName",
+            null,
+            $fileSize
+        );
+        throw new Exception($errorMsg);
     }
 
     // Crear estructura de directorios por año/mes
@@ -100,8 +127,27 @@ try {
 
     // Mover archivo
     if (!move_uploaded_file($tmpPath, $fullPath)) {
-        throw new Exception('Error al guardar el archivo');
+        $errorMsg = "Error al guardar el archivo en $fullPath";
+        $stats->logActivity(
+            'upload',
+            'error',
+            $errorMsg,
+            "Fallo al mover archivo temporal: $tmpPath → $fullPath",
+            $relativePath,
+            $fileSize
+        );
+        throw new Exception($errorMsg);
     }
+
+    // Log de archivo guardado exitosamente
+    $stats->logActivity(
+        'upload',
+        'success',
+        "Archivo subido exitosamente: $originalName",
+        "Guardado como: $relativePath (" . $stats->formatFileSize($fileSize) . ")",
+        $relativePath,
+        $fileSize
+    );
 
     // Crear metadatos
     $metadata = [
@@ -165,13 +211,45 @@ try {
         'stats_url' => "stats_dashboard.php?image=" . urlencode($relativePath)
     ];
 
-    // Log de éxito
+    // Log de éxito completo
+    $successMsg = "Upload completado exitosamente: $originalName → $relativePath (" . $stats->formatFileSize($fileSize) . ")";
+    $stats->logActivity(
+        'upload',
+        'completed',
+        $successMsg,
+        "ID de base de datos: $uploadId. URLs de optimización generadas.",
+        $relativePath,
+        $fileSize
+    );
+
     error_log("Upload success: " . $relativePath . " (" . number_format($fileSize) . " bytes) [ID: $uploadId]");
+
+    // Respuesta mejorada con mensaje coherente
+    $response['message'] = "✅ Archivo subido exitosamente";
+    $response['details'] = "Tu imagen '$originalName' se ha guardado correctamente y está lista para usar";
 
     echo json_encode($response);
 } catch (Exception $e) {
     http_response_code(500);
-    $error = ['error' => $e->getMessage()];
+
+    // Log detallado del error si stats está disponible
+    if (isset($stats)) {
+        $stats->logActivity(
+            'upload',
+            'failed',
+            "Upload falló: " . $e->getMessage(),
+            "Archivo: " . ($originalName ?? 'desconocido') . ". Error completo: " . $e->getTraceAsString(),
+            null,
+            $fileSize ?? null
+        );
+    }
+
+    $error = [
+        'error' => $e->getMessage(),
+        'message' => "❌ Error al subir archivo",
+        'details' => "No se pudo procesar tu archivo. " . $e->getMessage(),
+        'help' => "Verifica que el archivo sea una imagen válida (JPG, PNG, GIF, WebP, AVIF) y menor a 100MB"
+    ];
 
     // Log de error
     error_log("Upload error: " . $e->getMessage());

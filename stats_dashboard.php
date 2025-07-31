@@ -239,6 +239,112 @@ try {
                 </div>
             </div>
 
+            <!-- Logs de actividad recientes -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="chart-container">
+                        <h4><i class="fas fa-list-alt"></i> Log de Actividad Reciente</h4>
+
+                        <!-- Filtros de logs -->
+                        <div class="mb-3">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-primary btn-sm active" onclick="filterLogs('all')">Todos</button>
+                                <button type="button" class="btn btn-outline-success btn-sm" onclick="filterLogs('success')">Éxitos</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="filterLogs('error')">Errores</button>
+                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="filterLogs('upload')">Uploads</button>
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="filterLogs('image_view')">Visualizaciones</button>
+                            </div>
+                        </div>
+
+                        <?php if (empty($activityLogs)): ?>
+                            <p class="text-muted">No hay logs de actividad aún.</p>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Tiempo</th>
+                                            <th>Tipo</th>
+                                            <th>Estado</th>
+                                            <th>Mensaje</th>
+                                            <th>Archivo</th>
+                                            <th>IP</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="logsTableBody">
+                                        <?php foreach ($activityLogs as $log): ?>
+                                            <tr class="log-row" data-type="<?= htmlspecialchars($log['activity_type']) ?>" data-status="<?= htmlspecialchars($log['status']) ?>">
+                                                <td>
+                                                    <small class="text-muted">
+                                                        <?= date('d/m/Y H:i:s', strtotime($log['created_at'])) ?>
+                                                    </small>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-secondary">
+                                                        <?= htmlspecialchars($log['activity_type']) ?>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <?php
+                                                    $statusClass = '';
+                                                    $statusIcon = '';
+                                                    switch ($log['status']) {
+                                                        case 'success':
+                                                        case 'completed':
+                                                            $statusClass = 'bg-success';
+                                                            $statusIcon = 'fa-check';
+                                                            break;
+                                                        case 'error':
+                                                        case 'failed':
+                                                            $statusClass = 'bg-danger';
+                                                            $statusIcon = 'fa-times';
+                                                            break;
+                                                        case 'not_found':
+                                                            $statusClass = 'bg-warning';
+                                                            $statusIcon = 'fa-question';
+                                                            break;
+                                                        default:
+                                                            $statusClass = 'bg-info';
+                                                            $statusIcon = 'fa-info';
+                                                    }
+                                                    ?>
+                                                    <span class="badge <?= $statusClass ?>">
+                                                        <i class="fas <?= $statusIcon ?>"></i>
+                                                        <?= htmlspecialchars($log['status']) ?>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="log-message" title="<?= htmlspecialchars($log['details'] ?: $log['message']) ?>">
+                                                        <?= htmlspecialchars(substr($log['message'], 0, 100)) ?><?= strlen($log['message']) > 100 ? '...' : '' ?>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <?php if ($log['file_path']): ?>
+                                                        <small class="text-muted">
+                                                            <?= htmlspecialchars(basename($log['file_path'])) ?>
+                                                            <?php if ($log['file_size']): ?>
+                                                                <br><span class="badge bg-light text-dark"><?= $stats->formatFileSize($log['file_size']) ?></span>
+                                                            <?php endif; ?>
+                                                        </small>
+                                                    <?php else: ?>
+                                                        <small class="text-muted">-</small>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted">
+                                                        <?= htmlspecialchars(substr($log['ip_address'] ?: 'unknown', 0, 15)) ?>
+                                                    </small>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
             <div class="row">
                 <!-- Gráfico de visualizaciones por día -->
                 <div class="col-lg-8">
