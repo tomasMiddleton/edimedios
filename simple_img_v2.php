@@ -1,0 +1,315 @@
+<?php
+// ARCHIVO: simple_img_v2.php
+// Sistema de optimización compatible con estructura organizada y archivos legacy
+// Mantiene retrocompatibilidad total con simple_img.php
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Establecer codificación UTF-8
+header('Content-Type: text/html; charset=UTF-8');
+mb_internal_encoding('UTF-8');
+
+// Parámetros básicos - Compatible con PHP 5.5+
+$src = isset($_GET['src']) ? $_GET['src'] : '';
+$w = isset($_GET['w']) ? (int)$_GET['w'] : 0;
+$h = isset($_GET['h']) ? (int)$_GET['h'] : 0;
+$f = isset($_GET['f']) ? $_GET['f'] : 'auto'; // Formato: webp, avif, auto
+$q = isset($_GET['q']) ? (int)$_GET['q'] : 85; // Calidad
+
+// Si no hay parámetros, mostrar ayuda
+if (empty($src)) {
+    echo "<!DOCTYPE html>";
+    echo "<html lang='es'>";
+    echo "<head>";
+    echo "<meta charset='UTF-8'>";
+    echo "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+    echo "<title>Optimización de Imágenes v2</title>";
+    echo "<style>body{font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px;} .example{background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px;} .old{color: #666;} .new{color: #007cba; font-weight: bold;}</style>";
+    echo "</head>";
+    echo "<body>";
+    echo "<h1>🖼️ Optimización de Imágenes v2</h1>";
+    echo "<p>Sistema mejorado con soporte para estructura organizada por fecha</p>";
+
+    echo "<h2>📋 Uso:</h2>";
+    echo "<div class='example'>simple_img_v2.php?src=RUTA&w=ANCHO&h=ALTO&f=FORMATO&q=CALIDAD</div>";
+
+    echo "<h2>🗂️ Estructura soportada:</h2>";
+    echo "<ul>";
+    echo "<li><strong class='new'>Nueva:</strong> <code>2025/01/archivo.jpg</code> (organizada por año/mes)</li>";
+    echo "<li><strong class='old'>Legacy:</strong> <code>archivo.jpg</code> (archivos antiguos)</li>";
+    echo "</ul>";
+
+    echo "<h2>🧪 Ejemplos de prueba:</h2>";
+
+    // Buscar archivos de ejemplo
+    $examples = [];
+
+    // Buscar en estructura nueva (últimos 3 meses)
+    $currentYear = date('Y');
+    $currentMonth = (int)date('m');
+
+    for ($i = 0; $i < 3; $i++) {
+        $checkMonth = $currentMonth - $i;
+        $checkYear = $currentYear;
+
+        if ($checkMonth <= 0) {
+            $checkMonth += 12;
+            $checkYear--;
+        }
+
+        $monthStr = sprintf('%02d', $checkMonth);
+        $checkDir = "uploads/$checkYear/$monthStr";
+
+        if (is_dir($checkDir)) {
+            $files = glob($checkDir . '/*.{jpg,jpeg,png,gif}', GLOB_BRACE);
+            foreach (array_slice($files, 0, 2) as $file) {
+                $relativePath = str_replace('uploads/', '', $file);
+                $examples[] = ['path' => $relativePath, 'type' => 'nueva'];
+            }
+        }
+    }
+
+    // Buscar en estructura legacy
+    if (is_dir('uploads')) {
+        $legacyFiles = [];
+        $allFiles = scandir('uploads');
+        foreach ($allFiles as $file) {
+            if (is_file("uploads/$file") && preg_match('/\.(jpg|jpeg|png|gif)$/i', $file)) {
+                $legacyFiles[] = $file;
+            }
+        }
+
+        // Tomar los primeros 2 archivos legacy
+        foreach (array_slice($legacyFiles, 0, 2) as $file) {
+            $examples[] = ['path' => $file, 'type' => 'legacy'];
+        }
+    }
+
+    if (!empty($examples)) {
+        echo "<h3>📁 Archivos encontrados:</h3>";
+        foreach ($examples as $example) {
+            $path = $example['path'];
+            $type = $example['type'];
+            $typeLabel = $type === 'nueva' ? '<span class="new">Nueva estructura</span>' : '<span class="old">Legacy</span>';
+
+            echo "<div class='example'>";
+            echo "<strong>$typeLabel:</strong> $path<br>";
+            echo "<a href='simple_img_v2.php?src=" . urlencode($path) . "&w=100&h=100' target='_blank'>Thumbnail 100x100</a> | ";
+            echo "<a href='simple_img_v2.php?src=" . urlencode($path) . "&w=200&h=200' target='_blank'>Thumbnail 200x200</a> | ";
+            echo "<a href='simple_img_v2.php?src=" . urlencode($path) . "&w=300' target='_blank'>Ancho 300px</a>";
+            if ($type === 'nueva') {
+                echo " | <a href='simple_img_v2.php?src=" . urlencode($path) . "&w=200&h=200&f=webp' target='_blank'>WebP 200x200</a>";
+            }
+            echo "</div>";
+        }
+    } else {
+        echo "<p>ℹ️ No se encontraron archivos de ejemplo. Sube algunas imágenes primero.</p>";
+    }
+
+    // Estado del sistema
+    echo "<h2>⚙️ Estado del sistema:</h2>";
+    echo "<ul>";
+    echo "<li>GD Extension: " . (extension_loaded('gd') ? '✅ Disponible' : '❌ No disponible') . "</li>";
+    echo "<li>WebP Support: " . (function_exists('imagewebp') ? '✅ Sí' : '❌ No') . "</li>";
+    echo "<li>AVIF Support: " . (function_exists('imageavif') ? '✅ Sí' : '❌ No') . "</li>";
+    echo "<li>Uploads Directory: " . (is_dir('uploads') ? '✅ Existe' : '❌ No existe') . "</li>";
+    echo "<li>Cache Directory: " . (is_dir('cache') ? '✅ Existe' : '❌ No existe') . "</li>";
+    echo "</ul>";
+
+    echo "</body>";
+    echo "</html>";
+    exit;
+}
+
+// Determinar ruta del archivo
+function resolveFilePath($src)
+{
+    // Limpiar la ruta
+    $src = ltrim($src, '/');
+    $src = str_replace(['../', './'], '', $src); // Seguridad básica
+
+    // Si contiene barras, es estructura nueva
+    if (strpos($src, '/') !== false) {
+        $fullPath = 'uploads/' . $src;
+        if (file_exists($fullPath)) {
+            return $fullPath;
+        }
+    }
+
+    // Si no, buscar en estructura legacy
+    $legacyPath = 'uploads/' . basename($src);
+    if (file_exists($legacyPath)) {
+        return $legacyPath;
+    }
+
+    return false;
+}
+
+// Resolver ruta del archivo
+$filePath = resolveFilePath($src);
+
+if (!$filePath) {
+    header('Content-Type: text/plain; charset=utf-8');
+    http_response_code(404);
+    echo "Error: Archivo no encontrado\n";
+    echo "Ruta buscada: " . htmlspecialchars($src) . "\n";
+    echo "Nota: Asegúrate de usar la ruta relativa correcta\n";
+    echo "Ejemplos:\n";
+    echo "- Nueva estructura: 2025/01/archivo.jpg\n";
+    echo "- Legacy: archivo.jpg\n";
+    exit;
+}
+
+// Si no hay redimensionado, servir original
+if (!$w && !$h) {
+    $mimeType = mime_content_type($filePath);
+    header('Content-Type: ' . $mimeType);
+    header('Cache-Control: public, max-age=31536000');
+    readfile($filePath);
+    exit;
+}
+
+// Verificar GD
+if (!extension_loaded('gd')) {
+    header('Content-Type: text/plain; charset=utf-8');
+    http_response_code(500);
+    echo "Error: Extensión GD no disponible";
+    exit;
+}
+
+// Crear directorio cache si no existe
+if (!is_dir('cache')) {
+    mkdir('cache', 0755, true);
+}
+
+// Generar cache key único
+$cacheKey = md5($src . $w . $h . $f . $q);
+$cacheDir = 'cache';
+
+// Determinar extensión de salida
+$outputExt = 'jpg';
+if ($f === 'webp' && function_exists('imagewebp')) {
+    $outputExt = 'webp';
+} elseif ($f === 'avif' && function_exists('imageavif')) {
+    $outputExt = 'avif';
+}
+
+$cachePath = $cacheDir . '/' . $cacheKey . '.' . $outputExt;
+
+// Si existe en cache, servir directamente
+if (file_exists($cachePath)) {
+    $contentType = 'image/' . $outputExt;
+    header('Content-Type: ' . $contentType);
+    header('Cache-Control: public, max-age=31536000');
+    header('ETag: "' . $cacheKey . '"');
+    readfile($cachePath);
+    exit;
+}
+
+try {
+    // Obtener información de la imagen
+    $imageInfo = getimagesize($filePath);
+    if (!$imageInfo) {
+        throw new Exception("No se pudo leer la imagen");
+    }
+
+    $originalWidth = $imageInfo[0];
+    $originalHeight = $imageInfo[1];
+    $mimeType = $imageInfo['mime'];
+
+    // Crear imagen desde archivo
+    switch ($mimeType) {
+        case 'image/jpeg':
+            $sourceImage = imagecreatefromjpeg($filePath);
+            break;
+        case 'image/png':
+            $sourceImage = imagecreatefrompng($filePath);
+            break;
+        case 'image/gif':
+            $sourceImage = imagecreatefromgif($filePath);
+            break;
+        default:
+            throw new Exception("Formato de imagen no soportado: " . $mimeType);
+    }
+
+    if (!$sourceImage) {
+        throw new Exception("No se pudo crear imagen desde archivo");
+    }
+
+    // Calcular nuevas dimensiones manteniendo aspecto
+    if ($w && $h) {
+        $newWidth = $w;
+        $newHeight = $h;
+    } elseif ($w) {
+        $newWidth = $w;
+        $newHeight = ($originalHeight * $w) / $originalWidth;
+    } elseif ($h) {
+        $newHeight = $h;
+        $newWidth = ($originalWidth * $h) / $originalHeight;
+    }
+
+    // Crear imagen redimensionada
+    $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
+    if (!$resizedImage) {
+        throw new Exception("No se pudo crear imagen redimensionada");
+    }
+
+    // Preservar transparencia para PNG
+    if ($mimeType === 'image/png') {
+        imagealphablending($resizedImage, false);
+        imagesavealpha($resizedImage, true);
+        $transparent = imagecolorallocatealpha($resizedImage, 255, 255, 255, 127);
+        imagefill($resizedImage, 0, 0, $transparent);
+    }
+
+    // Redimensionar
+    $result = imagecopyresampled(
+        $resizedImage,
+        $sourceImage,
+        0,
+        0,
+        0,
+        0,
+        $newWidth,
+        $newHeight,
+        $originalWidth,
+        $originalHeight
+    );
+
+    if (!$result) {
+        throw new Exception("Error al redimensionar imagen");
+    }
+
+    // Guardar en cache según formato
+    $saveSuccess = false;
+    if ($outputExt === 'webp' && function_exists('imagewebp')) {
+        $saveSuccess = imagewebp($resizedImage, $cachePath, $q);
+        $contentType = 'image/webp';
+    } elseif ($outputExt === 'avif' && function_exists('imageavif')) {
+        $saveSuccess = imageavif($resizedImage, $cachePath, $q);
+        $contentType = 'image/avif';
+    } else {
+        $saveSuccess = imagejpeg($resizedImage, $cachePath, $q);
+        $contentType = 'image/jpeg';
+    }
+
+    if (!$saveSuccess) {
+        throw new Exception("Error al guardar imagen en cache");
+    }
+
+    // Servir imagen
+    header('Content-Type: ' . $contentType);
+    header('Cache-Control: public, max-age=31536000');
+    header('ETag: "' . $cacheKey . '"');
+
+    readfile($cachePath);
+
+    // Limpiar memoria
+    imagedestroy($sourceImage);
+    imagedestroy($resizedImage);
+} catch (Exception $e) {
+    header('Content-Type: text/plain; charset=utf-8');
+    http_response_code(500);
+    echo "Error: " . $e->getMessage();
+}
