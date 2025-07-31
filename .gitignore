@@ -1,2 +1,17 @@
 # Almacen
 uploads/
+
+# Cache de imágenes optimizadas
+cache/
+
+# Logs del sistema
+logs/
+
+# Metadata de archivos
+storage/
+
+# Archivos temporales
+temp/
+
+# Carpeta de IA y datos internos
+.ia/
