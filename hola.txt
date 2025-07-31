@@ -1,0 +1,10 @@
+<?php
+echo "PHP FUNCIONA - " . date('Y-m-d H:i:s');
+echo "\nPHP Version: " . PHP_VERSION;
+echo "\nGD Extension: " . (extension_loaded('gd') ? 'YES' : 'NO');
+echo "\nWorking Dir: " . getcwd();
+if (is_dir('uploads')) echo "\nUploads dir: EXISTS";
+if (file_exists('uploads/dbdc084939e778491a168dfbd94f14ba.jpg')) {
+    echo "\nTest image: EXISTS (" . filesize('uploads/dbdc084939e778491a168dfbd94f14ba.jpg') . " bytes)";
+}
+?>
