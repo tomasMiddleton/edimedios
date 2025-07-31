@@ -1,16 +1,14 @@
 # ARCHIVO: .htaccess
 RewriteEngine On
 
-# Optimización de imágenes
+# Optimización de imágenes - Version compatible con producción
 # Si se accede a una imagen con parámetros, redirigir a optimize.php
-RewriteCond %{REQUEST_URI} ^/uploads/(.+\.(jpg|jpeg|png|gif))$ [NC]
 RewriteCond %{QUERY_STRING} .+
-RewriteRule ^uploads/(.+)$ optimize.php?img=$1 [QSA,L]
+RewriteRule ^uploads/([^/]+\.(jpg|jpeg|png|gif))$ optimize.php?img=$1 [QSA,L]
 
 # Servir imágenes normales sin parámetros directamente
-RewriteCond %{REQUEST_URI} ^/uploads/(.+\.(jpg|jpeg|png|gif))$ [NC]
 RewriteCond %{QUERY_STRING} ^$
-RewriteRule ^uploads/(.+)$ uploads/$1 [L]
+RewriteRule ^uploads/([^/]+\.(jpg|jpeg|png|gif))$ uploads/$1 [L]
 
 # Headers de cache para imágenes estáticas
 <FilesMatch "\.(jpg|jpeg|png|gif|webp|avif)$">

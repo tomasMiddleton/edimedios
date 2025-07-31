@@ -1,0 +1,19 @@
+# Configuración para Nginx (alternativa a .htaccess)
+# Agregar en el bloque server {} del sitio
+
+location ~ ^/uploads/([^/]+\.(jpg|jpeg|png|gif))$ {
+    # Si hay query string, redirigir a optimize.php
+    if ($args) {
+        rewrite ^/uploads/(.+)$ /optimize.php?img=$1 last;
+    }
+    
+    # Si no hay query string, servir archivo directamente
+    try_files $uri =404;
+}
+
+# Headers de cache para imágenes
+location ~* \.(jpg|jpeg|png|gif|webp|avif)$ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    add_header Access-Control-Allow-Origin "*";
+} 

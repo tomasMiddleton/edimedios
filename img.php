@@ -1,13 +1,15 @@
 <?php
-// ARCHIVO: optimize.php
-// Procesa optimización de imágenes con parámetros URL
+// ARCHIVO: img.php
+// Sistema de routing directo que no depende de .htaccess
+// USO: img.php?src=imagen.jpg&w=100&h=100&f=webp
 
+// Headers básicos
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
 // Obtener parámetros
-$imagePath = $_GET['img'] ?? '';
+$imagePath = $_GET['src'] ?? '';
 $width = (int)($_GET['w'] ?? 0);
 $height = (int)($_GET['h'] ?? 0);
 $quality = (int)($_GET['q'] ?? 85);
@@ -15,6 +17,11 @@ $format = $_GET['f'] ?? 'auto';
 $fit = $_GET['fit'] ?? 'cover';
 
 // Validar que la imagen existe
+if (empty($imagePath)) {
+    http_response_code(400);
+    exit('Parámetro src requerido');
+}
+
 $fullPath = 'uploads/' . basename($imagePath);
 if (!file_exists($fullPath)) {
     http_response_code(404);
@@ -41,6 +48,14 @@ if (file_exists($cachePath)) {
     header('ETag: "' . $cacheKey . '"');
 
     readfile($cachePath);
+    exit;
+}
+
+// Si no hay parámetros de optimización, servir original
+if (!$width && !$height && $format === 'auto') {
+    header('Content-Type: ' . mime_content_type($fullPath));
+    header('Cache-Control: public, max-age=31536000');
+    readfile($fullPath);
     exit;
 }
 
