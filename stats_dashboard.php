@@ -11,6 +11,10 @@ try {
     $periodStats = $stats->getStatsByPeriod(30);
     $formatStats = $stats->getFormatStats();
 
+    // Obtener logs de actividad
+    $activityLogs = $stats->getActivityLogs(30);
+    $logStats = $stats->getLogStats();
+
     // Si se especifica una imagen, obtener sus estadísticas
     $imageStats = null;
     $imagePath = $_GET['image'] ?? '';
@@ -496,6 +500,29 @@ try {
                 }
             }
         });
+
+        // Función para filtrar logs
+        function filterLogs(type) {
+            const rows = document.querySelectorAll('.log-row');
+            const buttons = document.querySelectorAll('.btn-group .btn');
+
+            // Actualizar botones
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Filtrar filas
+            rows.forEach(row => {
+                if (type === 'all') {
+                    row.style.display = '';
+                } else if (type === 'success') {
+                    row.style.display = (row.dataset.status === 'success' || row.dataset.status === 'completed') ? '' : 'none';
+                } else if (type === 'error') {
+                    row.style.display = (row.dataset.status === 'error' || row.dataset.status === 'failed' || row.dataset.status === 'not_found') ? '' : 'none';
+                } else {
+                    row.style.display = row.dataset.type === type ? '' : 'none';
+                }
+            });
+        }
     </script>
 </body>
 
