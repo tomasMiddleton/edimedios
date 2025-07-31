@@ -2,6 +2,10 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Establecer codificación UTF-8
+header('Content-Type: text/html; charset=UTF-8');
+mb_internal_encoding('UTF-8');
+
 // Parámetros básicos - Compatible con PHP 5.5
 $src = isset($_GET['src']) ? $_GET['src'] : '';
 $w = isset($_GET['w']) ? (int)$_GET['w'] : 0;
@@ -9,6 +13,14 @@ $h = isset($_GET['h']) ? (int)$_GET['h'] : 0;
 
 // Si no hay parámetros, mostrar ayuda
 if (empty($src)) {
+    echo "<!DOCTYPE html>";
+    echo "<html lang='es'>";
+    echo "<head>";
+    echo "<meta charset='UTF-8'>";
+    echo "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+    echo "<title>Optimización de Imágenes</title>";
+    echo "</head>";
+    echo "<body>";
     echo "<h1>Optimización de Imágenes</h1>";
     echo "<p>Uso: simple_img.php?src=imagen.jpg&w=100&h=100</p>";
     echo "<p><a href='simple_img.php?src=dbdc084939e778491a168dfbd94f14ba.jpg&w=100&h=100'>PRUEBA: Thumbnail 100x100</a></p>";
@@ -42,6 +54,8 @@ if (empty($src)) {
         echo "<p>❌ Imagen de prueba NO existe</p>";
     }
 
+    echo "</body>";
+    echo "</html>";
     exit;
 }
 
