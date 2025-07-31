@@ -7,8 +7,11 @@ cache/
 # Logs del sistema
 logs/
 
-# Metadata de archivos
+# Metadata de archivos y estadísticas
 storage/
+storage/stats.db
+storage/stats.db-*
+storage/metadata/
 
 # Archivos temporales
 temp/
