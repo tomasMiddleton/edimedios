@@ -2,10 +2,19 @@
 // ARCHIVO: file_manager.php
 // Endpoint para gestión de archivos (listado, eliminación)
 
+// Cargar sistema de seguridad
+require_once(__DIR__ . '/lib/SecurityManager.php');
+
+try {
+    $security = new SecurityManager();
+    $security->applySecurityChecks();
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Security system error: ' . $e->getMessage()]);
+    exit;
+}
+
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, DELETE');
-header('Access-Control-Allow-Headers: Content-Type');
 
 // Manejar preflight OPTIONS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {

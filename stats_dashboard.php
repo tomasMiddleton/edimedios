@@ -3,8 +3,13 @@
 // Dashboard de estadísticas de imágenes con gráficos y métricas
 
 require_once(__DIR__ . '/lib/StatsManager.php');
+require_once(__DIR__ . '/lib/SecurityManager.php');
 
 try {
+    // Cargar sistema de seguridad
+    $security = new SecurityManager();
+    $security->applyCORS(); // Solo CORS para dashboard, no bloqueos
+
     $stats = new StatsManager();
     $generalStats = $stats->getGeneralStats();
     $topImages = $stats->getTopImages(15);
@@ -14,6 +19,9 @@ try {
     // Obtener logs de actividad
     $activityLogs = $stats->getActivityLogs(30);
     $logStats = $stats->getLogStats();
+
+    // Obtener configuración de seguridad
+    $securityConfig = $security->getConfig();
 
     // Si se especifica una imagen, obtener sus estadísticas
     $imageStats = null;
@@ -450,6 +458,12 @@ try {
                                 <i class="fas fa-list-alt"></i> Logs
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security"
+                                type="button" role="tab">
+                                <i class="fas fa-shield-alt"></i> Seguridad
+                            </button>
+                        </li>
                     </ul>
 
                     <div class="tab-content" id="managementTabContent">
@@ -547,6 +561,138 @@ try {
                                             <i class="fas fa-exclamation-triangle"></i> ELIMINAR TODOS LOS LOGS
                                         </button>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña de seguridad -->
+                        <div class="tab-pane fade" id="security" role="tabpanel">
+                            <div class="mt-3">
+                                <h6>🛡️ Configuración de Seguridad</h6>
+
+                                <!-- CORS Configuration -->
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">🌐 CORS (Cross-Origin Resource Sharing)</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Estado:</label>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="corsEnabled"
+                                                        <?= ($securityConfig['cors']['enabled'] ?? false) ? 'checked' : '' ?>>
+                                                    <label class="form-check-label" for="corsEnabled">
+                                                        CORS Habilitado
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Orígenes permitidos:</label>
+                                                <div id="allowedOrigins">
+                                                    <?php foreach ($securityConfig['cors']['allowed_origins'] ?? [] as $origin): ?>
+                                                        <div class="input-group mb-2">
+                                                            <input type="text" class="form-control" value="<?= htmlspecialchars($origin) ?>">
+                                                            <button class="btn btn-outline-danger" type="button" onclick="removeOrigin(this)">
+                                                                <i class="fas fa-times"></i>
+                                                            </button>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                                <button class="btn btn-outline-primary btn-sm" onclick="addOrigin()">
+                                                    <i class="fas fa-plus"></i> Agregar origen
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Rate Limiting -->
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">⚡ Rate Limiting</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="rateLimitEnabled"
+                                                        <?= ($securityConfig['rate_limiting']['enabled'] ?? false) ? 'checked' : '' ?>>
+                                                    <label class="form-check-label" for="rateLimitEnabled">
+                                                        Rate Limiting Habilitado
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Requests por minuto:</label>
+                                                <input type="number" class="form-control" id="requestsPerMinute"
+                                                    value="<?= $securityConfig['rate_limiting']['requests_per_minute'] ?? 60 ?>">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Requests por hora:</label>
+                                                <input type="number" class="form-control" id="requestsPerHour"
+                                                    value="<?= $securityConfig['rate_limiting']['requests_per_hour'] ?? 1000 ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Upload Security -->
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">📁 Seguridad de Uploads</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Tamaño máximo (MB):</label>
+                                                <input type="number" class="form-control" id="maxFileSize"
+                                                    value="<?= $securityConfig['file_upload']['max_file_size_mb'] ?? 100 ?>">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="blockExecutable"
+                                                        <?= ($securityConfig['file_upload']['block_executable_content'] ?? true) ? 'checked' : '' ?>>
+                                                    <label class="form-check-label" for="blockExecutable">
+                                                        Bloquear contenido ejecutable
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label class="form-label">Extensiones permitidas:</label>
+                                            <input type="text" class="form-control" id="allowedExtensions"
+                                                value="<?= implode(', ', $securityConfig['file_upload']['allowed_extensions'] ?? []) ?>">
+                                            <small class="text-muted">Separadas por comas</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Emergency Mode -->
+                                <div class="card border-warning">
+                                    <div class="card-header bg-warning">
+                                        <h6 class="mb-0">🚨 Modo de Emergencia</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="maintenanceMode"
+                                                <?= ($securityConfig['emergency']['maintenance_mode'] ?? false) ? 'checked' : '' ?>>
+                                            <label class="form-check-label" for="maintenanceMode">
+                                                Modo Mantenimiento
+                                            </label>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label class="form-label">Mensaje de mantenimiento:</label>
+                                            <textarea class="form-control" id="maintenanceMessage" rows="2"><?= htmlspecialchars($securityConfig['emergency']['maintenance_message'] ?? '') ?></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <button class="btn btn-primary" onclick="saveSecurityConfig()">
+                                        <i class="fas fa-save"></i> Guardar Configuración
+                                    </button>
+                                    <small class="text-muted ms-2">Los cambios se aplicarán inmediatamente</small>
                                 </div>
                             </div>
                         </div>
@@ -880,6 +1026,76 @@ try {
             }
 
             return `${size.toFixed(2)} ${units[unitIndex]}`;
+        }
+
+        // Gestión de orígenes CORS
+        function addOrigin() {
+            const container = document.getElementById('allowedOrigins');
+            const div = document.createElement('div');
+            div.className = 'input-group mb-2';
+            div.innerHTML = `
+                 <input type="text" class="form-control" placeholder="https://ejemplo.com">
+                 <button class="btn btn-outline-danger" type="button" onclick="removeOrigin(this)">
+                     <i class="fas fa-times"></i>
+                 </button>
+             `;
+            container.appendChild(div);
+        }
+
+        function removeOrigin(button) {
+            button.parentElement.remove();
+        }
+
+        // Guardar configuración de seguridad
+        function saveSecurityConfig() {
+            const config = {
+                cors: {
+                    enabled: document.getElementById('corsEnabled').checked,
+                    allowed_origins: Array.from(document.querySelectorAll('#allowedOrigins input')).map(input => input.value).filter(v => v),
+                    allowed_methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+                    allowed_headers: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+                    allow_credentials: false,
+                    max_age: 3600
+                },
+                rate_limiting: {
+                    enabled: document.getElementById('rateLimitEnabled').checked,
+                    requests_per_minute: parseInt(document.getElementById('requestsPerMinute').value),
+                    requests_per_hour: parseInt(document.getElementById('requestsPerHour').value),
+                    blocked_duration_minutes: 15
+                },
+                file_upload: {
+                    max_file_size_mb: parseInt(document.getElementById('maxFileSize').value),
+                    allowed_extensions: document.getElementById('allowedExtensions').value.split(',').map(ext => ext.trim()),
+                    block_executable_content: document.getElementById('blockExecutable').checked
+                },
+                emergency: {
+                    maintenance_mode: document.getElementById('maintenanceMode').checked,
+                    maintenance_message: document.getElementById('maintenanceMessage').value
+                }
+            };
+
+            fetch('security_manager.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'update_config',
+                        config: config
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ Configuración de seguridad guardada correctamente');
+                    } else {
+                        alert('❌ Error: ' + (data.message || data.error));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error de conexión');
+                });
         }
     </script>
 </body>

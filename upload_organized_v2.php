@@ -9,10 +9,19 @@ define('REQUEST_START_TIME', microtime(true));
 // Cargar StatsManager
 require_once(__DIR__ . '/lib/StatsManager.php');
 
-// Headers de seguridad y CORS
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept');
+// Cargar sistema de seguridad
+require_once(__DIR__ . '/lib/SecurityManager.php');
+
+try {
+    $security = new SecurityManager();
+    $security->applySecurityChecks();
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Security system error: ' . $e->getMessage()]);
+    exit;
+}
+
+// Headers de contenido
 header('Content-Type: application/json; charset=utf-8');
 
 // Manejar preflight OPTIONS

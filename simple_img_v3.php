@@ -9,8 +9,9 @@ ini_set('display_errors', 1);
 // Inicializar tiempo de procesamiento
 $startTime = microtime(true);
 
-// Cargar StatsManager
+// Cargar sistemas de gestión
 require_once(__DIR__ . '/lib/StatsManager.php');
+require_once(__DIR__ . '/lib/SecurityManager.php');
 
 // Establecer codificación UTF-8
 header('Content-Type: text/html; charset=UTF-8');
@@ -206,6 +207,17 @@ if (!$filePath) {
     echo "• Legacy: archivo.jpg\n";
     echo "• Legacy migrado: legacy/archivo.jpg\n\n";
     echo "🔗 Para ver imágenes disponibles: simple_img_v3.php\n";
+    exit;
+}
+
+// 🛡️ APLICAR SEGURIDAD
+try {
+    $security = new SecurityManager();
+    $security->applySecurityChecks();
+} catch (Exception $e) {
+    http_response_code(500);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "Error de seguridad: " . $e->getMessage();
     exit;
 }
 
